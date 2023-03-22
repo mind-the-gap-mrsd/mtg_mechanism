@@ -1,3 +1,5 @@
+// mtg
+
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 #include <Arduino_JSON.h>
@@ -22,11 +24,11 @@ String jsonBuffer;
 int flag;
 int prev = 0;
 
-#define IN1 32
-#define IN2 33
-#define IN3 34
-#define IN4 35
-#define PIN 25
+#define IN1 14
+#define IN2 12
+#define IN3 13
+#define IN4 15
+#define LOCK 5
 
 const int stepsPerRevolution = 2000;
 Stepper myStepper(stepsPerRevolution, IN1, IN2, IN3, IN4);
@@ -37,7 +39,8 @@ void setup() {
   delay(1000);
 
   myStepper.setSpeed(60);
-  pinMode(PIN, OUTPUT);
+  pinMode(LOCK, OUTPUT);
+  digitalWrite(LOCK, LOW);
 
   WiFi.mode(WIFI_STA); //Optional
   WiFi.begin(ssid, password);
@@ -49,12 +52,24 @@ void setup() {
   }
 
   Serial.println("\nConnected to the WiFi network");
-  Serial.print("Local ESP32 IP: ");
+  Serial.print("Local ESP8266 IP: ");
   Serial.println(WiFi.localIP());
+
+  // digitalWrite(LOCK, HIGH);
+  // delay(1000);
+  // digitalWrite(LOCK, LOW);
+  // delay(1000);
+
+  // myStepper.step(-2.5 * stepsPerRevolution);
+  // // yield();
+  // // myStepper.step(2.5 * stepsPerRevolution);
+  // // delay(1);
+  // Serial.println("done");
 
 }
 
 void loop() {
+  // return;
   if ((millis() - lastTime) > timerDelay) {
     // Check WiFi connection status
     if(WiFi.status()== WL_CONNECTED){
@@ -76,13 +91,13 @@ void loop() {
       if (!strcmp(myObject["feeds"][0]["field1"], "1")) {
         flag = 1;
         if (flag != prev)
-          couple();
+          for(int i=0; i<5; i++) couple();
         else Serial.println("error in 1 check");
       }
       else if (!strcmp(myObject["feeds"][0]["field1"], "0")) {
         flag = 0;
         if (flag != prev)
-          decouple();        
+          for(int i=0; i<5; i++) decouple();        
         else Serial.println("error in 2 check");
       }
     }
@@ -123,11 +138,18 @@ String httpGETRequest(const char* serverName) {
 void couple() {
   prev = 1;
   Serial.println("coupling");
-  return;
+  myStepper.step(1.06 * stepsPerRevolution);
+  // yield();
+  // delay(100);
+  digitalWrite(LOCK, HIGH);
+  // yield();
 }
 
 void decouple() {
   prev = 0;
   Serial.println("decoupling");
-  return;  
+  digitalWrite(LOCK, LOW);
+  // delay(100);
+  myStepper.step(-1.06 * stepsPerRevolution);  
+  // yield();
 }
