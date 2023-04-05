@@ -5,8 +5,8 @@
 #include <Arduino_JSON.h>
 #include <Stepper.h>
 
-const char* ssid = "RoboSAR2";
-const char* password = "robosar2022";
+const char* ssid = "thegunduboss";
+const char* password = "password";
 
 WiFiClient client;
 
@@ -24,11 +24,11 @@ String jsonBuffer;
 int flag;
 int prev = 0;
 
-#define IN1 14
-#define IN2 12
-#define IN3 13
-#define IN4 15
-#define LOCK 5
+#define IN1 14 // D5
+#define IN2 12 // D6
+#define IN3 13 // D7
+#define IN4 15 // D8
+#define LOCK 5 // D1
 
 const int stepsPerRevolution = 2000;
 Stepper myStepper(stepsPerRevolution, IN1, IN2, IN3, IN4);
@@ -40,8 +40,11 @@ void setup() {
 
   myStepper.setSpeed(60);
   pinMode(LOCK, OUTPUT);
-  digitalWrite(LOCK, LOW);
+  digitalWrite(LOCK, HIGH);
 
+  Serial.println("hihihihihihi");
+
+  ESP.eraseConfig();
   WiFi.mode(WIFI_STA); //Optional
   WiFi.begin(ssid, password);
   Serial.println("\nConnecting");
@@ -55,17 +58,7 @@ void setup() {
   Serial.print("Local ESP8266 IP: ");
   Serial.println(WiFi.localIP());
 
-  // digitalWrite(LOCK, HIGH);
-  // delay(1000);
-  // digitalWrite(LOCK, LOW);
-  // delay(1000);
-
-  // myStepper.step(-2.5 * stepsPerRevolution);
-  // // yield();
-  // // myStepper.step(2.5 * stepsPerRevolution);
-  // // delay(1);
-  // Serial.println("done");
-
+  WiFi.setSleepMode(WIFI_NONE_SLEEP);
 }
 
 void loop() {
@@ -76,6 +69,7 @@ void loop() {
       String serverPath = serverName;
       
       jsonBuffer = httpGETRequest(serverPath.c_str());
+      if (jsonBuffer == "{}") return;
       // Serial.println(jsonBuffer);
       JSONVar myObject = JSON.parse(jsonBuffer);
   
@@ -90,19 +84,27 @@ void loop() {
       Serial.println(JSON.typeof(myObject["feeds"][0]["field1"]));
       if (!strcmp(myObject["feeds"][0]["field1"], "1")) {
         flag = 1;
-        if (flag != prev)
-          for(int i=0; i<5; i++) couple();
+        if (flag != prev) {
+          for(int i=0; i<5; i++) forward();
+          lock();          
+          // couple();
+        }
         else Serial.println("error in 1 check");
       }
       else if (!strcmp(myObject["feeds"][0]["field1"], "0")) {
         flag = 0;
-        if (flag != prev)
-          for(int i=0; i<5; i++) decouple();        
+        if (flag != prev) {
+          unlock();
+          for(int i=0; i<5; i++) backward();
+          // decouple();        
+        }
         else Serial.println("error in 2 check");
       }
     }
     else {
       Serial.println("WiFi Disconnected");
+      // Serial.println("Reconnecting");
+      // WiFi.reconnect();
     }
     lastTime = millis();
   }
@@ -135,12 +137,38 @@ String httpGETRequest(const char* serverName) {
   return payload;
 }
 
+void forward() {
+  prev = 1;
+  Serial.println("forward");
+  myStepper.step(1.06 * stepsPerRevolution);
+}
+
+void backward() {
+  prev = 0;
+  Serial.println("backward");
+  myStepper.step(-1.06 * stepsPerRevolution);
+}
+
+void lock() {
+  prev = 1;
+  Serial.println("lock");
+  digitalWrite(LOCK, LOW);
+}
+
+void unlock() {
+  prev = 0;
+  Serial.println("unlock");
+  digitalWrite(LOCK, HIGH);
+}
+
 void couple() {
   prev = 1;
   Serial.println("coupling");
-  myStepper.step(1.06 * stepsPerRevolution);
+  for(int i=0; i<5; i++) {
+    myStepper.step(1.06 * stepsPerRevolution);
+  }
   // yield();
-  // delay(100);
+  delay(10);
   digitalWrite(LOCK, HIGH);
   // yield();
 }
@@ -149,7 +177,9 @@ void decouple() {
   prev = 0;
   Serial.println("decoupling");
   digitalWrite(LOCK, LOW);
-  // delay(100);
-  myStepper.step(-1.06 * stepsPerRevolution);  
+  delay(10);
+  for(int i=0; i<5; i++) {
+    myStepper.step(-1.06 * stepsPerRevolution);
+  }
   // yield();
 }
