@@ -5,8 +5,8 @@
 #include <Arduino_JSON.h>
 #include <Stepper.h>
 
-const char* ssid = "thegunduboss";
-const char* password = "password";
+const char* ssid = "RoboSAR2";
+const char* password = "robosar2022";
 
 WiFiClient client;
 
@@ -15,13 +15,15 @@ String APIkey      = "2064160";             // Thingspeak Read Key, works only i
 String APIreadkey  = "SK4O1YEHVBXIWABJ";   // Thingspeak Read Key, works only if a PUBLIC viewable channel
 const int httpPort = 80;
 
-String serverName = "http://api.thingspeak.com/channels/" + APIkey + "/fields/1.json?api_key=" + APIreadkey + "&results=1";
+// 114: 1, 115: 2, 116: 3
+String serverName = "http://api.thingspeak.com/channels/" + APIkey + "/fields/2.json?api_key=" + APIreadkey + "&results=1";
+String field_name = "field2";
 
 unsigned long lastTime = 0;
 unsigned long timerDelay = 1000;
 
 String jsonBuffer;
-int flag;
+int flag = 0;
 int prev = 0;
 
 #define IN1 14 // D5
@@ -40,7 +42,8 @@ void setup() {
 
   myStepper.setSpeed(60);
   pinMode(LOCK, OUTPUT);
-  digitalWrite(LOCK, HIGH);
+  digitalWrite(LOCK, LOW);
+  motorOff();
 
   Serial.println("hihihihihihi");
 
@@ -62,7 +65,6 @@ void setup() {
 }
 
 void loop() {
-  // return;
   if ((millis() - lastTime) > timerDelay) {
     // Check WiFi connection status
     if(WiFi.status()== WL_CONNECTED){
@@ -70,7 +72,6 @@ void loop() {
       
       jsonBuffer = httpGETRequest(serverPath.c_str());
       if (jsonBuffer == "{}") return;
-      // Serial.println(jsonBuffer);
       JSONVar myObject = JSON.parse(jsonBuffer);
   
       // JSON.typeof(jsonVar) can be used to get the type of the var
@@ -78,33 +79,63 @@ void loop() {
         Serial.println("Parsing input failed!");
         return;
       }
-    
-      Serial.print("Couple flag: ");
-      Serial.println(myObject["feeds"][0]["field1"]);
-      Serial.println(JSON.typeof(myObject["feeds"][0]["field1"]));
-      if (!strcmp(myObject["feeds"][0]["field1"], "1")) {
-        flag = 1;
-        if (flag != prev) {
-          for(int i=0; i<5; i++) forward();
-          lock();          
-          // couple();
-        }
-        else Serial.println("error in 1 check");
-      }
-      else if (!strcmp(myObject["feeds"][0]["field1"], "0")) {
+
+      if (!strcmp(myObject["feeds"][0][field_name], "0")) {
         flag = 0;
         if (flag != prev) {
-          unlock();
-          for(int i=0; i<5; i++) backward();
-          // decouple();        
+          Serial.println("decouple");
+          decouple();        
+          motorOff();
         }
-        else Serial.println("error in 2 check");
+        else Serial.println("repeat in decoupling check");
       }
+      else if (!strcmp(myObject["feeds"][0][field_name], "1")) {
+        flag = 1;
+        if (flag != prev) {      
+          Serial.println("couple"); 
+          couple();
+          motorOff();
+        }
+        else Serial.println("repeat in coupling check");
+      }
+      else if (!strcmp(myObject["feeds"][0][field_name], "2")) {
+        flag = 2;
+        if (flag != prev) {
+          Serial.println("forward"); 
+          forward();     
+          motorOff();
+        }
+        else Serial.println("repeat in forward check");
+      }
+      else if (!strcmp(myObject["feeds"][0][field_name], "3")) {
+        flag = 3;
+        if (flag != prev) {
+          Serial.println("backward"); 
+          backward();        
+          motorOff();
+        }
+        else Serial.println("repeat in backward check");
+      }
+      else if (!strcmp(myObject["feeds"][0][field_name], "4")) {
+        flag = 4;
+        if (flag != prev) {
+          Serial.println("lock"); 
+          lock();        
+        }
+        else Serial.println("repeat in lock check");
+      }
+      else if (!strcmp(myObject["feeds"][0][field_name], "5")) {
+        flag = 5;
+        if (flag != prev) {
+          Serial.println("unlock"); 
+          unlock();        
+        }
+        else Serial.println("repeat in unlock check");
+      }
+      prev = flag;
     }
     else {
       Serial.println("WiFi Disconnected");
-      // Serial.println("Reconnecting");
-      // WiFi.reconnect();
     }
     lastTime = millis();
   }
@@ -123,12 +154,10 @@ String httpGETRequest(const char* serverName) {
   String payload = "{}"; 
   
   if (httpResponseCode>0) {
-    // Serial.print("HTTP Response code: ");
-    // Serial.println(httpResponseCode);
     payload = http.getString();
   }
   else {
-    Serial.print("Error code: ");
+    Serial.print("repeat code: ");
     Serial.println(httpResponseCode);
   }
   // Free resources
@@ -138,48 +167,38 @@ String httpGETRequest(const char* serverName) {
 }
 
 void forward() {
-  prev = 1;
-  Serial.println("forward");
-  myStepper.step(1.06 * stepsPerRevolution);
+  myStepper.step(1.1 * stepsPerRevolution);
+  delay(100);
 }
 
 void backward() {
-  prev = 0;
-  Serial.println("backward");
-  myStepper.step(-1.06 * stepsPerRevolution);
+  myStepper.step(-1.1 * stepsPerRevolution);
+  delay(100);
 }
 
 void lock() {
-  prev = 1;
-  Serial.println("lock");
   digitalWrite(LOCK, LOW);
 }
 
 void unlock() {
-  prev = 0;
-  Serial.println("unlock");
   digitalWrite(LOCK, HIGH);
 }
 
 void couple() {
-  prev = 1;
-  Serial.println("coupling");
-  for(int i=0; i<5; i++) {
-    myStepper.step(1.06 * stepsPerRevolution);
-  }
-  // yield();
-  delay(10);
-  digitalWrite(LOCK, HIGH);
-  // yield();
+  unlock();
+  for(int i=0; i<5; i++) forward();
+  lock();
 }
 
 void decouple() {
-  prev = 0;
-  Serial.println("decoupling");
-  digitalWrite(LOCK, LOW);
-  delay(10);
-  for(int i=0; i<5; i++) {
-    myStepper.step(-1.06 * stepsPerRevolution);
-  }
-  // yield();
+  unlock();
+  for(int i=0; i<5; i++) backward();
+  lock();
+}
+
+void motorOff() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
 }
