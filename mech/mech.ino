@@ -5,8 +5,8 @@
 #include <Arduino_JSON.h>
 #include <Stepper.h>
 
-const char* ssid = "RoboSAR2";
-const char* password = "robosar2022";
+const char* ssid = "thegunduboss";
+const char* password = "password";
 
 WiFiClient client;
 
@@ -16,8 +16,9 @@ String APIreadkey  = "SK4O1YEHVBXIWABJ";   // Thingspeak Read Key, works only if
 const int httpPort = 80;
 
 // 114: 1, 115: 2, 116: 3
-String serverName = "http://api.thingspeak.com/channels/" + APIkey + "/fields/2.json?api_key=" + APIreadkey + "&results=1";
-String field_name = "field2";
+String field_num = "3";
+String serverName = "http://api.thingspeak.com/channels/" + APIkey + "/fields/" + field_num + ".json?api_key=" + APIreadkey + "&results=1";
+String field_name = "field" + field_num;
 
 unsigned long lastTime = 0;
 unsigned long timerDelay = 1000;
@@ -167,20 +168,22 @@ String httpGETRequest(const char* serverName) {
 }
 
 void forward() {
-  myStepper.step(1.1 * stepsPerRevolution);
+  myStepper.step(1.06 * stepsPerRevolution);
   delay(100);
 }
 
 void backward() {
-  myStepper.step(-1.1 * stepsPerRevolution);
+  myStepper.step(-1.06 * stepsPerRevolution);
   delay(100);
 }
 
 void lock() {
+  delay(1000);
   digitalWrite(LOCK, LOW);
 }
 
 void unlock() {
+  delay(1000);
   digitalWrite(LOCK, HIGH);
 }
 
