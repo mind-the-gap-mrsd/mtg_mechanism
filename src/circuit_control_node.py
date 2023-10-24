@@ -27,29 +27,34 @@ if __name__ == '__main__':
     #s_to_nema_pi = None
 
     while True:
-        s_from_agent_2.listen(5)
+        s_from_agent_2.listen(100)
         print("Listening")
-        
+        if s_to_agent_1 is None:
+            s_to_agent_1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s_to_agent_1.connect((agent_1, computer_to_pi_port)) 
+            print("Connected to agent 1 at pi/port", agent_1, computer_to_pi_port)
+        else:
+            s_to_agent_1 = s_to_agent_1
         try: #Will send data to agent 1 only if data is received from agent 2
             print("accepting")
             conn, addr = s_from_agent_2.accept()
             #print("Connected to: " + address[0] + ":" + str(address[1]))
-            print("Printing data received")
+            #Ensure data is from agent 2: 
+            sender_ip, sender_port = s_from_agent_2.getpeername()
+            print("Printing data received from", sender_ip)
             #with conn:
+            #if sender_ip == agent_2: #to avoid false positives
             data = conn.recv(1024)
                 #if data:
-            print(int(data.decode()))
-            if s_to_agent_1 is None:
-                s_to_agent_1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s_to_agent_1.connect((agent_1, computer_to_pi_port)) 
-                print("Connected to pi/port", agent_1, computer_to_pi_port)
-            else:
-                s_to_agent_1 = s_to_agent_1
-            s_to_agent_1.sendall(str(1).encode())
+            print(int(data.decode()), conn, addr)
+            s_to_agent_1.sendall(str(1).encode()) #Tell agent 1 agent 2 is ready
             print ("Sent command", 1)
             
         except Exception as e: #if you don't get feedback, can't do anything
-            print("Waiting for circuit feedback")
+            #Can maybe run this as an async function?
+            s_to_agent_1.sendall(str(2).encode()) #Tell agent 1 agent 2 is not ready
+            print("Sent 2, Waiting for circuit feedback")
+        time.sleep(1)
         
 
 
