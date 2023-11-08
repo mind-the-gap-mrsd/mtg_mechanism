@@ -51,5 +51,5 @@ def couple():
     except Exception as e:
         print("Failed because", e)
         time.sleep(5)
-            #Extend Nima till second limit switch is hit
+            
 	

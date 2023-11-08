@@ -70,20 +70,20 @@ void backward() {
 }
 
 
-void couple() {
+void decouple() {
   for(int i=0; i<6; i++) {
-    forward();
+    backward();
     Serial.println(i); }
-    myStepper.step(1.06 * 750);
+    myStepper.step(-1.06 * 750);
 }
 
-void decouple() {
+void couple() {
 
   for(int i=0; i<6; i++){
-     backward();
+     forward();
     Serial.println(i);
   }
-   myStepper.step(-1.06 * 750);
+   myStepper.step(1.06 * 750);
 
 }
 void motorOff() {

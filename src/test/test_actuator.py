@@ -18,6 +18,6 @@ def actuate(i):
     except KeyboardInterrupt:
         p.stop()
         GPIO.cleanup()
-#i = int(input())
-actuate(1)
+i = int(input())
+actuate(1)  
 
